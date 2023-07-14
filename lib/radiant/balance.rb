@@ -4,6 +4,14 @@ module Radiant
   @radiant_uri_arbitrum = "https://api.thegraph.com/subgraphs/name/radiantcapitaldevelopment/radiantcapital"
   @radiant_uri_bsc = "https://api.thegraph.com/subgraphs/name/radiantcapitaldevelopment/radiant-bsc"
 
+  # Covalent API URL
+  @covalent_api_url_arbitrum = "https://api.covalenthq.com/v1/42161/address"
+  @covalent_api_url_bsc = "https://api.covalenthq.com/v1/56/address"
+
+  # Token addresses
+  @rdnt_token_address_arbitrum = '0x3082cc23568ea640225c2467653db90e9250aaa0'
+  @rdnt_token_address_bsc = '0xf7de7e8a6bd59ed41a4b5fe50278b3b7f31384df'
+
   def self.get_siwe_address_by_username(username)
     user = User.find_by_username(username)
     return nil unless user
@@ -87,18 +95,62 @@ module Radiant
     # Get amounts from both chains with the appropriate multipliers
     rdnt_amount_arbitrum = get_rdnt_amount_from_chain(user, @radiant_uri_arbitrum, 0.8)
     rdnt_amount_bsc = get_rdnt_amount_from_chain(user, @radiant_uri_bsc, 0.5)
+    loose_rdnt_in_wallet_arbitrum = get_loose_rdnt_in_wallet_amount(user.username, @covalent_api_url_arbitrum, @rdnt_token_address_arbitrum)
+    loose_rdnt_in_wallet_bsc = get_loose_rdnt_in_wallet_amount(user.username, @covalent_api_url_bsc, @rdnt_token_address_bsc)
+
+    # Check if the RDNT token was found or not
+    if loose_rdnt_in_wallet_arbitrum == "RDNT token not found in wallet"
+      puts "RDNT token not found in Arbitrum wallet for #{user.username}"
+      loose_rdnt_in_wallet_arbitrum = 0
+    end
+
+    if loose_rdnt_in_wallet_bsc == "RDNT token not found in BSC wallet for #{user.username}"
+      puts "RDNT token not found in BSC wallet for #{user.username}"
+      loose_rdnt_in_wallet_bsc = 0
+    end
 
     # Log the amounts fetched from each chain
     puts "rdnt_amount_arbitrum: #{rdnt_amount_arbitrum}"
     puts "rdnt_amount_bsc: #{rdnt_amount_bsc}"
+    puts "loose_rdnt_in_wallet_arbitrum: #{loose_rdnt_in_wallet_arbitrum}"
+    puts "loose_rdnt_in_wallet_bsc: #{loose_rdnt_in_wallet_bsc}"
 
-    # Sum amounts from both chains
-    total_rdnt_amount = rdnt_amount_arbitrum + rdnt_amount_bsc
+    # Sum amounts from both chains and the wallet
+    total_rdnt_amount = rdnt_amount_arbitrum + rdnt_amount_bsc + loose_rdnt_in_wallet_arbitrum + loose_rdnt_in_wallet_bsc
 
     # Cache the total RDNT amount
     Discourse.cache.write(cache_key, total_rdnt_amount, expires_in: SiteSetting.radiant_user_cache_minutes.minutes)
 
     total_rdnt_amount
+  end
+
+  def self.get_loose_rdnt_in_wallet_amount(username, covalent_api_url, rdnt_token_address)
+    user = User.find_by_username(username)
+    return nil unless user
+    
+    siwe_address = get_siwe_address_by_user(user)
+    return nil unless siwe_address
+
+    # Get the API key from the site settings
+    api_key = SiteSetting.radiant_covalent_api_key
+
+    # Make sure you have a valid API key before proceeding
+    return nil if api_key.empty?
+    
+    url = "#{covalent_api_url}/#{siwe_address}/balances_v2/?&key=#{api_key}"
+    uri = URI(url)
+    response = Net::HTTP.get(uri)
+    data = JSON.parse(response)
+    items = data['data']['items']
+    
+    rdnt_token = items.find { |item| item['contract_address'].downcase == rdnt_token_address.downcase }
+    if rdnt_token
+      balance_in_wei = rdnt_token['balance'].to_i
+      balance_in_token = balance_in_wei / 1.0e18
+      balance_in_token
+    else
+      0
+    end
   end
     
   def self.get_rdnt_amount_from_chain(user, radiant_uri, multiplier)

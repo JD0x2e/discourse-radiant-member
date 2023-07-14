@@ -1,7 +1,7 @@
 en:
-  site_settings: 
+  site_settings:
     radiant_member_enabled: Enable Radiant Memberships Plugin
-    radiant_group_values: bar-separated list of group:dollar-balance 
+    radiant_group_values: bar-separated list of group:dollar-balance
     radiant_user_cache_minutes: minutes to wait before retrieving user balance
     radiant_dollar_cache_minutes: minutes to wait before retrieving the radiant token value in dollars
-
+    radiant_covalent_api_key: Covalent API Key
