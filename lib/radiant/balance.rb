@@ -163,7 +163,7 @@ module Radiant
       address = get_siwe_address_by_user(user)
       if address.nil?
         puts "User has not connected their wallet."
-        return [0, 0]
+        return 0
       end
       uri = URI(radiant_uri)
       req = Net::HTTP::Post.new(uri)
@@ -192,8 +192,8 @@ module Radiant
   
       # Now fetch the loose RDNT balance
       api_key = SiteSetting.radiant_covalent_api_key
-      return [0, 0] if api_key.empty?
-      
+      return 0 if api_key.empty?
+  
       url = "#{covalent_api_url}/#{address}/balances_v2/?&key=#{api_key}"
       uri = URI(url)
       response = Net::HTTP.get(uri)
@@ -211,10 +211,10 @@ module Radiant
         rdnt_amount_within_loose = 0
       end
   
-      return [rdnt_amount_within_locked.to_d.round(2, :truncate).to_f, rdnt_amount_within_loose.to_d.round(2, :truncate).to_f]
+      return (rdnt_amount_within_locked + rdnt_amount_within_loose).to_d.round(2, :truncate).to_f
     rescue => e
       puts "something went wrong getting locked and loose rdnt amounts #{e}"
-      return [0, 0]
+      return 0
     end
   end  
 end
