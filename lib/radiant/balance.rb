@@ -95,43 +95,37 @@ module Radiant
     total_rdnt_amount.to_d.round(2, :truncate).to_f
   end
 
-  def self.fetch_and_cache_rdnt_amount(user, cache_key)
-    # Get amounts from both chains with the appropriate multipliers
-    rdnt_amount_from_locked_and_loose_arbitrum = get_rdnt_amount_from_locked_and_loose_balance(user, @radiant_uri_arbitrum, @covalent_api_url_arbitrum, @rdnt_token_address_arbitrum, @dlp_token_address_arbitrum, 0.8)
-    rdnt_amount_from_locked_and_loose_bsc = get_rdnt_amount_from_locked_and_loose_balance(user, @radiant_uri_bsc, @covalent_api_url_bsc, @rdnt_token_address_bsc, @dlp_token_address_bsc, 0.5)
-    loose_rdnt_in_wallet_arbitrum = get_loose_rdnt_in_wallet_amount(user.username, @covalent_api_url_arbitrum, @rdnt_token_address_arbitrum)
-    loose_rdnt_in_wallet_bsc = get_loose_rdnt_in_wallet_amount(user.username, @covalent_api_url_bsc, @rdnt_token_address_bsc)
+  def self.fetch_and_cache_rdnt_amount(user, cache_key, force_refresh: false)
+    if force_refresh || Discourse.cache.read(cache_key).nil?
+      # Get amounts from both chains with the appropriate multipliers
+      rdnt_amount_from_locked_and_loose_arbitrum = get_rdnt_amount_from_locked_and_loose_balance(user, @radiant_uri_arbitrum, @covalent_api_url_arbitrum, @rdnt_token_address_arbitrum, @dlp_token_address_arbitrum, 0.8)
+      rdnt_amount_from_locked_and_loose_bsc = get_rdnt_amount_from_locked_and_loose_balance(user, @radiant_uri_bsc, @covalent_api_url_bsc, @rdnt_token_address_bsc, @dlp_token_address_bsc, 0.5)
+      loose_rdnt_in_wallet_arbitrum = get_loose_rdnt_in_wallet_amount(user.username, @covalent_api_url_arbitrum, @rdnt_token_address_arbitrum)
+      loose_rdnt_in_wallet_bsc = get_loose_rdnt_in_wallet_amount(user.username, @covalent_api_url_bsc, @rdnt_token_address_bsc)
 
-     # Convert nil to 0
-    loose_rdnt_in_wallet_arbitrum = loose_rdnt_in_wallet_arbitrum || 0
-    loose_rdnt_in_wallet_bsc = loose_rdnt_in_wallet_bsc || 0
+      # Convert nil to 0
+      loose_rdnt_in_wallet_arbitrum = loose_rdnt_in_wallet_arbitrum || 0
+      loose_rdnt_in_wallet_bsc = loose_rdnt_in_wallet_bsc || 0
 
-    # Check if the RDNT token was found or not
-    if loose_rdnt_in_wallet_arbitrum == "RDNT token not found in wallet"
-      puts "RDNT token not found in Arbitrum wallet for #{user.username}"
-      loose_rdnt_in_wallet_arbitrum = 0
+      # Log the amounts fetched from each chain
+      puts "rdnt_amount_from_locked_and_loose_arbitrum: #{rdnt_amount_from_locked_and_loose_arbitrum}"
+      puts "rdnt_amount_from_locked_and_loose_bsc: #{rdnt_amount_from_locked_and_loose_bsc}"
+      puts "loose_rdnt_in_wallet_arbitrum: #{loose_rdnt_in_wallet_arbitrum}"
+      puts "loose_rdnt_in_wallet_bsc: #{loose_rdnt_in_wallet_bsc}"
+  
+      # Sum amounts from both chains and the wallet
+      total_rdnt_amount = rdnt_amount_from_locked_and_loose_arbitrum + rdnt_amount_from_locked_and_loose_bsc + loose_rdnt_in_wallet_arbitrum + loose_rdnt_in_wallet_bsc
+
+      # Cache the total RDNT amount
+      Discourse.cache.write(cache_key, total_rdnt_amount, expires_in: SiteSetting.radiant_user_cache_minutes.minutes)
+
+      total_rdnt_amount
+    else
+      # Read the cached value
+      Discourse.cache.read(cache_key)
     end
-
-    if loose_rdnt_in_wallet_bsc == "RDNT token not found in BSC wallet for #{user.username}"
-      puts "RDNT token not found in BSC wallet for #{user.username}"
-      loose_rdnt_in_wallet_bsc = 0
-    end
-
-    # Log the amounts fetched from each chain
-    puts "rdnt_amount_from_locked_and_loose_arbitrum: #{rdnt_amount_from_locked_and_loose_arbitrum}"
-    puts "rdnt_amount_from_locked_and_loose_bsc: #{rdnt_amount_from_locked_and_loose_bsc}"
-    puts "loose_rdnt_in_wallet_arbitrum: #{loose_rdnt_in_wallet_arbitrum}"
-    puts "loose_rdnt_in_wallet_bsc: #{loose_rdnt_in_wallet_bsc}"
- 
-   # Sum amounts from both chains and the wallet
-   total_rdnt_amount = rdnt_amount_from_locked_and_loose_arbitrum + rdnt_amount_from_locked_and_loose_bsc + loose_rdnt_in_wallet_arbitrum + loose_rdnt_in_wallet_bsc
-
-    # Cache the total RDNT amount
-    Discourse.cache.write(cache_key, total_rdnt_amount, expires_in: SiteSetting.radiant_user_cache_minutes.minutes)
-
-    total_rdnt_amount
   end
-
+  
   def self.get_loose_rdnt_in_wallet_amount(username, covalent_api_url, rdnt_token_address)
     user = User.find_by_username(username)
     return nil unless user
@@ -163,7 +157,7 @@ module Radiant
     
   def self.get_rdnt_amount_from_locked_and_loose_balance(user, radiant_uri, covalent_api_url, rdnt_token_address, dlp_token_address, multiplier)
     begin
-      puts "getting address"
+      puts "Fetching address.."
       address = get_siwe_address_by_user(user)
       if address.nil?
         puts "User has not connected their wallet."
@@ -182,7 +176,7 @@ module Radiant
       req_options = { use_ssl: uri.scheme == "https" }
       puts "getting #{req} from #{radiant_uri} with #{address}"
       res = Net::HTTP.start(uri.hostname, uri.port, req_options) { |http| http.request(req) }
-      puts "got something #{res}"
+      # puts "got something #{res}"
       parsed_body = JSON.parse(res.body)
       puts "got parsed_body: #{parsed_body}"
   
@@ -192,7 +186,7 @@ module Radiant
       locked_balance_formatted = locked_balance / 1e18
       locked_balance_in_usd = locked_balance_formatted * lp_token_price_in_usd
       rdnt_amount_within_locked = (locked_balance_in_usd * multiplier) / price_of_rdnt_token
-      puts "got #{rdnt_amount_within_locked}"
+      puts "got #{rdnt_amount_within_locked} RDNT within locked dLP"
   
       # Now fetch the loose RDNT balance
       api_key = SiteSetting.radiant_covalent_api_key
@@ -210,7 +204,7 @@ module Radiant
         loose_balance_formatted_dlp = loose_balance_dlp / 1.0e18
         loose_balance_in_usd = loose_balance_formatted_dlp * lp_token_price_in_usd
         rdnt_amount_within_loose = (loose_balance_in_usd * multiplier) / price_of_rdnt_token
-        puts "got loose rdnt #{rdnt_amount_within_loose}"
+        puts "got #{rdnt_amount_within_loose} RDNT within loose dLP"
       else
         rdnt_amount_within_loose = 0
       end

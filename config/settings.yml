@@ -6,10 +6,10 @@ plugins:
     default: "rfp-author:1|rfp-commenter:2500"
     client: true
   radiant_user_cache_minutes:
-    default: 1440
+    default: 720
     client: false
   radiant_dollar_cache_minutes:
-    default: 1440
+    default: 720
     client: false
   radiant_covalent_api_key:
     default: ""
