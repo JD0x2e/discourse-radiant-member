@@ -102,6 +102,10 @@ module Radiant
     loose_rdnt_in_wallet_arbitrum = get_loose_rdnt_in_wallet_amount(user.username, @covalent_api_url_arbitrum, @rdnt_token_address_arbitrum)
     loose_rdnt_in_wallet_bsc = get_loose_rdnt_in_wallet_amount(user.username, @covalent_api_url_bsc, @rdnt_token_address_bsc)
 
+     # Convert nil to 0
+    loose_rdnt_in_wallet_arbitrum = loose_rdnt_in_wallet_arbitrum || 0
+    loose_rdnt_in_wallet_bsc = loose_rdnt_in_wallet_bsc || 0
+
     # Check if the RDNT token was found or not
     if loose_rdnt_in_wallet_arbitrum == "RDNT token not found in wallet"
       puts "RDNT token not found in Arbitrum wallet for #{user.username}"
