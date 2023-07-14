@@ -8,9 +8,13 @@ module Radiant
   @covalent_api_url_arbitrum = "https://api.covalenthq.com/v1/42161/address"
   @covalent_api_url_bsc = "https://api.covalenthq.com/v1/56/address"
 
-  # Token addresses
+  # Token addresses arbitrum
   @rdnt_token_address_arbitrum = '0x3082cc23568ea640225c2467653db90e9250aaa0'
+  @dlp_token_address_arbitrum = '0x32dF62dc3aEd2cD6224193052Ce665DC18165841'
+
+  # Token addresses bsc
   @rdnt_token_address_bsc = '0xf7de7e8a6bd59ed41a4b5fe50278b3b7f31384df'
+  @dlp_token_address_bsc = '0x346575fC7f07E6994D76199E41D13dC1575322E1'
 
   def self.get_siwe_address_by_username(username)
     user = User.find_by_username(username)
@@ -93,8 +97,8 @@ module Radiant
 
   def self.fetch_and_cache_rdnt_amount(user, cache_key)
     # Get amounts from both chains with the appropriate multipliers
-    rdnt_amount_arbitrum = get_rdnt_amount_from_chain(user, @radiant_uri_arbitrum, 0.8)
-    rdnt_amount_bsc = get_rdnt_amount_from_chain(user, @radiant_uri_bsc, 0.5)
+    rdnt_amount_from_locked_and_loose_arbitrum = get_rdnt_amount_from_locked_and_loose_balance(user, @radiant_uri_arbitrum, @covalent_api_url_arbitrum, @rdnt_token_address_arbitrum, @dlp_token_address_arbitrum, 0.8)
+    rdnt_amount_from_locked_and_loose_bsc = get_rdnt_amount_from_locked_and_loose_balance(user, @radiant_uri_bsc, @covalent_api_url_bsc, @rdnt_token_address_bsc, @dlp_token_address_bsc, 0.5)
     loose_rdnt_in_wallet_arbitrum = get_loose_rdnt_in_wallet_amount(user.username, @covalent_api_url_arbitrum, @rdnt_token_address_arbitrum)
     loose_rdnt_in_wallet_bsc = get_loose_rdnt_in_wallet_amount(user.username, @covalent_api_url_bsc, @rdnt_token_address_bsc)
 
@@ -110,13 +114,13 @@ module Radiant
     end
 
     # Log the amounts fetched from each chain
-    puts "rdnt_amount_arbitrum: #{rdnt_amount_arbitrum}"
-    puts "rdnt_amount_bsc: #{rdnt_amount_bsc}"
+    puts "rdnt_amount_from_locked_and_loose_arbitrum: #{rdnt_amount_from_locked_and_loose_arbitrum}"
+    puts "rdnt_amount_from_locked_and_loose_bsc: #{rdnt_amount_from_locked_and_loose_bsc}"
     puts "loose_rdnt_in_wallet_arbitrum: #{loose_rdnt_in_wallet_arbitrum}"
     puts "loose_rdnt_in_wallet_bsc: #{loose_rdnt_in_wallet_bsc}"
-
-    # Sum amounts from both chains and the wallet
-    total_rdnt_amount = rdnt_amount_arbitrum + rdnt_amount_bsc + loose_rdnt_in_wallet_arbitrum + loose_rdnt_in_wallet_bsc
+ 
+   # Sum amounts from both chains and the wallet
+   total_rdnt_amount = rdnt_amount_from_locked_and_loose_arbitrum + rdnt_amount_from_locked_and_loose_bsc + loose_rdnt_in_wallet_arbitrum + loose_rdnt_in_wallet_bsc
 
     # Cache the total RDNT amount
     Discourse.cache.write(cache_key, total_rdnt_amount, expires_in: SiteSetting.radiant_user_cache_minutes.minutes)
@@ -153,13 +157,13 @@ module Radiant
     end
   end
     
-  def self.get_rdnt_amount_from_chain(user, radiant_uri, multiplier)
+  def self.get_rdnt_amount_from_locked_and_loose_balance(user, radiant_uri, covalent_api_url, rdnt_token_address, dlp_token_address, multiplier)
     begin
       puts "getting address"
       address = get_siwe_address_by_user(user)
       if address.nil?
         puts "User has not connected their wallet."
-        return 0
+        return [0, 0]
       end
       uri = URI(radiant_uri)
       req = Net::HTTP::Post.new(uri)
@@ -183,12 +187,34 @@ module Radiant
       lp_token_price_in_usd = lp_token_price / 1e8
       locked_balance_formatted = locked_balance / 1e18
       locked_balance_in_usd = locked_balance_formatted * lp_token_price_in_usd
-      rdnt_amount = (locked_balance_in_usd * multiplier) / price_of_rdnt_token
-      puts "got #{rdnt_amount}"
+      rdnt_amount_within_locked = (locked_balance_in_usd * multiplier) / price_of_rdnt_token
+      puts "got #{rdnt_amount_within_locked}"
+  
+      # Now fetch the loose RDNT balance
+      api_key = SiteSetting.radiant_covalent_api_key
+      return [0, 0] if api_key.empty?
+      
+      url = "#{covalent_api_url}/#{address}/balances_v2/?&key=#{api_key}"
+      uri = URI(url)
+      response = Net::HTTP.get(uri)
+      data = JSON.parse(response)
+      items = data['data']['items']
+  
+      loose_balance = items.find { |item| item['contract_address'].downcase == dlp_token_address.downcase }
+      if loose_balance
+        loose_balance_dlp = loose_balance['balance'].to_i
+        loose_balance_formatted_dlp = loose_balance_dlp / 1.0e18
+        loose_balance_in_usd = loose_balance_formatted_dlp * lp_token_price_in_usd
+        rdnt_amount_within_loose = (loose_balance_in_usd * multiplier) / price_of_rdnt_token
+        puts "got loose rdnt #{rdnt_amount_within_loose}"
+      else
+        rdnt_amount_within_loose = 0
+      end
+  
+      return [rdnt_amount_within_locked.to_d.round(2, :truncate).to_f, rdnt_amount_within_loose.to_d.round(2, :truncate).to_f]
     rescue => e
-      puts "something went wrong getting rdnt amount #{e}"
-      return 0
+      puts "something went wrong getting locked and loose rdnt amounts #{e}"
+      return [0, 0]
     end
-    rdnt_amount.to_d.round(2, :truncate).to_f
-  end
+  end  
 end
