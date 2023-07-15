@@ -102,40 +102,41 @@ module Radiant
 
   def self.fetch_and_cache_rdnt_amount(user, cache_key, force_refresh: false)
     if force_refresh || Discourse.cache.read(cache_key).nil?
-      # Get amounts from both chains with the appropriate multipliers
-      rdnt_amount_from_locked_and_loose_arbitrum = get_rdnt_amount_from_locked_and_loose_balance(user, @radiant_uri_arbitrum, @covalent_api_url_arbitrum, @rdnt_token_address_arbitrum, @dlp_token_address_arbitrum, 0.8)
-      rdnt_amount_from_locked_and_loose_bsc = get_rdnt_amount_from_locked_and_loose_balance(user, @radiant_uri_bsc, @covalent_api_url_bsc, @rdnt_token_address_bsc, @dlp_token_address_bsc, 0.5)
-      loose_rdnt_in_wallet_arbitrum = get_loose_rdnt_in_wallet_amount(user.username, @covalent_api_url_arbitrum, @rdnt_token_address_arbitrum)
-      loose_rdnt_in_wallet_bsc = get_loose_rdnt_in_wallet_amount(user.username, @covalent_api_url_bsc, @rdnt_token_address_bsc)
-      
-      # Get fully vested amount from both chains
-      fully_vested_rdnt_arbitrum = get_fully_vested_rdnt_amount(user.username, SiteSettings.radiant_quicknode_arb, @mfd_arbitrum)
-      fully_vested_rdnt_bsc = get_fully_vested_rdnt_amount(user.username, SiteSettings.radiant_quicknode_bsc, @mfd_bsc)
-      
-      # Convert nil to 0
-      loose_rdnt_in_wallet_arbitrum = loose_rdnt_in_wallet_arbitrum || 0
-      loose_rdnt_in_wallet_bsc = loose_rdnt_in_wallet_bsc || 0
-      fully_vested_rdnt_arbitrum = fully_vested_rdnt_arbitrum || 0
-      fully_vested_rdnt_bsc = fully_vested_rdnt_bsc || 0
-  
-      # Log the amounts fetched from each chain
-      puts "rdnt_amount_from_locked_and_loose_arbitrum: #{rdnt_amount_from_locked_and_loose_arbitrum}"
-      puts "rdnt_amount_from_locked_and_loose_bsc: #{rdnt_amount_from_locked_and_loose_bsc}"
-      puts "loose_rdnt_in_wallet_arbitrum: #{loose_rdnt_in_wallet_arbitrum}"
-      puts "loose_rdnt_in_wallet_bsc: #{loose_rdnt_in_wallet_bsc}"
-      puts "fully_vested_rdnt_arbitrum: #{fully_vested_rdnt_arbitrum}"
-      puts "fully_vested_rdnt_bsc: #{fully_vested_rdnt_bsc}"
-  
-      # Sum amounts from both chains and the wallet
-      total_rdnt_amount = rdnt_amount_from_locked_and_loose_arbitrum + rdnt_amount_from_locked_and_loose_bsc + loose_rdnt_in_wallet_arbitrum + loose_rdnt_in_wallet_bsc + fully_vested_rdnt_arbitrum + fully_vested_rdnt_bsc
-  
-      # Cache the total RDNT amount
-      Discourse.cache.write(cache_key, total_rdnt_amount, expires_in: SiteSetting.radiant_user_cache_minutes.minutes)
-  
-      total_rdnt_amount
+        # Get amounts from both chains with the appropriate multipliers
+        rdnt_amount_from_locked_and_loose_arbitrum = get_rdnt_amount_from_locked_and_loose_balance(user, @radiant_uri_arbitrum, @covalent_api_url_arbitrum, @rdnt_token_address_arbitrum, @dlp_token_address_arbitrum, 0.8)
+        rdnt_amount_from_locked_and_loose_bsc = get_rdnt_amount_from_locked_and_loose_balance(user, @radiant_uri_bsc, @covalent_api_url_bsc, @rdnt_token_address_bsc, @dlp_token_address_bsc, 0.5)
+
+        loose_rdnt_in_wallet_arbitrum = get_loose_rdnt_in_wallet_amount(user.username, @covalent_api_url_arbitrum, @rdnt_token_address_arbitrum)
+        loose_rdnt_in_wallet_bsc = get_loose_rdnt_in_wallet_amount(user.username, @covalent_api_url_bsc, @rdnt_token_address_bsc)
+
+        # Get fully vested amount from both chains
+        fully_vested_rdnt_arbitrum = get_fully_vested_rdnt_amount(user.username, SiteSetting.radiant_quicknode_arb, @mfd_arbitrum)
+        fully_vested_rdnt_bsc = get_fully_vested_rdnt_amount(user.username, SiteSetting.radiant_quicknode_bsc, @mfd_bsc)
+
+        # Convert nil to 0
+        loose_rdnt_in_wallet_arbitrum = loose_rdnt_in_wallet_arbitrum || 0
+        loose_rdnt_in_wallet_bsc = loose_rdnt_in_wallet_bsc || 0
+        fully_vested_rdnt_arbitrum = fully_vested_rdnt_arbitrum || 0
+        fully_vested_rdnt_bsc = fully_vested_rdnt_bsc || 0
+
+        # Log the amounts fetched from each chain
+        puts "rdnt_amount_from_locked_and_loose_arbitrum: #{rdnt_amount_from_locked_and_loose_arbitrum}"
+        puts "rdnt_amount_from_locked_and_loose_bsc: #{rdnt_amount_from_locked_and_loose_bsc}"
+        puts "loose_rdnt_in_wallet_arbitrum: #{loose_rdnt_in_wallet_arbitrum}"
+        puts "loose_rdnt_in_wallet_bsc: #{loose_rdnt_in_wallet_bsc}"
+        puts "fully_vested_rdnt_arbitrum: #{fully_vested_rdnt_arbitrum}"
+        puts "fully_vested_rdnt_bsc: #{fully_vested_rdnt_bsc}"
+
+        # Sum amounts from both chains and the wallet
+        total_rdnt_amount = rdnt_amount_from_locked_and_loose_arbitrum + rdnt_amount_from_locked_and_loose_bsc + loose_rdnt_in_wallet_arbitrum + loose_rdnt_in_wallet_bsc + fully_vested_rdnt_arbitrum + fully_vested_rdnt_bsc
+
+        # Cache the total RDNT amount
+        Discourse.cache.write(cache_key, total_rdnt_amount, expires_in: SiteSetting.radiant_user_cache_minutes.minutes)
+
+        total_rdnt_amount
     else
-      # Read the cached value
-      Discourse.cache.read(cache_key)
+        # Read the cached value
+        Discourse.cache.read(cache_key)
     end
   end    
   
