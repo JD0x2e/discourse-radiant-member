@@ -16,6 +16,11 @@ module Radiant
   @rdnt_token_address_bsc = '0xf7de7e8a6bd59ed41a4b5fe50278b3b7f31384df'
   @dlp_token_address_bsc = '0x346575fC7f07E6994D76199E41D13dC1575322E1'
 
+  # MFD contract address
+  @mfd_arbitrum = '0x76ba3eC5f5adBf1C58c91e86502232317EeA72dE'
+  @mfd_bsc = '0x4FD9F7C5ca0829A656561486baDA018505dfcB5E' 
+
+
   def self.get_siwe_address_by_username(username)
     user = User.find_by_username(username)
     return nil unless user
@@ -102,29 +107,37 @@ module Radiant
       rdnt_amount_from_locked_and_loose_bsc = get_rdnt_amount_from_locked_and_loose_balance(user, @radiant_uri_bsc, @covalent_api_url_bsc, @rdnt_token_address_bsc, @dlp_token_address_bsc, 0.5)
       loose_rdnt_in_wallet_arbitrum = get_loose_rdnt_in_wallet_amount(user.username, @covalent_api_url_arbitrum, @rdnt_token_address_arbitrum)
       loose_rdnt_in_wallet_bsc = get_loose_rdnt_in_wallet_amount(user.username, @covalent_api_url_bsc, @rdnt_token_address_bsc)
-
+      
+      # Get fully vested amount from both chains
+      fully_vested_rdnt_arbitrum = get_fully_vested_rdnt_amount(user.username, SiteSettings.radiant_quicknode_arb, @mfd_arbitrum)
+      fully_vested_rdnt_bsc = get_fully_vested_rdnt_amount(user.username, SiteSettings.radiant_quicknode_bsc, @mfd_bsc)
+      
       # Convert nil to 0
       loose_rdnt_in_wallet_arbitrum = loose_rdnt_in_wallet_arbitrum || 0
       loose_rdnt_in_wallet_bsc = loose_rdnt_in_wallet_bsc || 0
-
+      fully_vested_rdnt_arbitrum = fully_vested_rdnt_arbitrum || 0
+      fully_vested_rdnt_bsc = fully_vested_rdnt_bsc || 0
+  
       # Log the amounts fetched from each chain
       puts "rdnt_amount_from_locked_and_loose_arbitrum: #{rdnt_amount_from_locked_and_loose_arbitrum}"
       puts "rdnt_amount_from_locked_and_loose_bsc: #{rdnt_amount_from_locked_and_loose_bsc}"
       puts "loose_rdnt_in_wallet_arbitrum: #{loose_rdnt_in_wallet_arbitrum}"
       puts "loose_rdnt_in_wallet_bsc: #{loose_rdnt_in_wallet_bsc}"
+      puts "fully_vested_rdnt_arbitrum: #{fully_vested_rdnt_arbitrum}"
+      puts "fully_vested_rdnt_bsc: #{fully_vested_rdnt_bsc}"
   
       # Sum amounts from both chains and the wallet
-      total_rdnt_amount = rdnt_amount_from_locked_and_loose_arbitrum + rdnt_amount_from_locked_and_loose_bsc + loose_rdnt_in_wallet_arbitrum + loose_rdnt_in_wallet_bsc
-
+      total_rdnt_amount = rdnt_amount_from_locked_and_loose_arbitrum + rdnt_amount_from_locked_and_loose_bsc + loose_rdnt_in_wallet_arbitrum + loose_rdnt_in_wallet_bsc + fully_vested_rdnt_arbitrum + fully_vested_rdnt_bsc
+  
       # Cache the total RDNT amount
       Discourse.cache.write(cache_key, total_rdnt_amount, expires_in: SiteSetting.radiant_user_cache_minutes.minutes)
-
+  
       total_rdnt_amount
     else
       # Read the cached value
       Discourse.cache.read(cache_key)
     end
-  end
+  end    
   
   def self.get_loose_rdnt_in_wallet_amount(username, covalent_api_url, rdnt_token_address)
     user = User.find_by_username(username)
@@ -154,7 +167,46 @@ module Radiant
       0
     end
   end
-    
+
+  def self.get_fully_vested_rdnt_amount(username, network_uri, contract_address)
+    user = User.find_by_username(username)
+    return nil unless user
+  
+    siwe_address = get_siwe_address_by_user(user)
+    return nil unless siwe_address
+  
+    # Remove "0x" from the start of the siwe address
+    siwe_address = siwe_address[2..-1] if siwe_address.start_with?("0x")
+  
+    uri = URI(network_uri)
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = true
+  
+    request = Net::HTTP::Post.new(uri, 'Content-Type' => 'application/json')
+  
+    request.body = {
+      "jsonrpc": "2.0",
+      "method": "eth_call",
+      "params": [{
+        "to": contract_address,
+        "data": "0xdf379876000000000000000000000000#{siwe_address}"
+      }, "latest"],
+      "id": 1
+    }.to_json
+  
+    response = http.request(request)
+    result = JSON.parse(response.body)
+  
+    result_string = result['result'][2..-1]  # remove the "0x" from the beginning
+    hex_value = result_string.scan(/.{64}/)[1] # get the second section
+  
+    # Include the ether formatting within the main function
+    unlocked_wei = hex_value.to_i(16)
+    decimals = 10**18
+    unlocked_ether = BigDecimal(unlocked_wei) / BigDecimal(decimals)
+    unlocked_ether.to_s('F')
+  end
+      
   def self.get_rdnt_amount_from_locked_and_loose_balance(user, radiant_uri, covalent_api_url, rdnt_token_address, dlp_token_address, multiplier)
     begin
       puts "Fetching address.."

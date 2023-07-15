@@ -14,3 +14,9 @@ plugins:
   radiant_covalent_api_key:
     default: ""
     client: false
+  radiant_quicknode_arb:
+    default: ""
+    client: false
+  radiant_quicknode_bsc:
+    default: ""
+    client: false
