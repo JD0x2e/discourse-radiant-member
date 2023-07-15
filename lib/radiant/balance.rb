@@ -128,7 +128,7 @@ module Radiant
         puts "fully_vested_rdnt_bsc: #{fully_vested_rdnt_bsc}"
 
         # Sum amounts from both chains and the wallet
-        total_rdnt_amount = rdnt_amount_from_locked_and_loose_arbitrum + rdnt_amount_from_locked_and_loose_bsc + loose_rdnt_in_wallet_arbitrum + loose_rdnt_in_wallet_bsc + fully_vested_rdnt_arbitrum + fully_vested_rdnt_bsc
+        total_rdnt_amount = rdnt_amount_from_locked_and_loose_arbitrum.to_f + rdnt_amount_from_locked_and_loose_bsc.to_f + loose_rdnt_in_wallet_arbitrum.to_f + loose_rdnt_in_wallet_bsc.to_f + fully_vested_rdnt_arbitrum.to_f + fully_vested_rdnt_bsc.to_f
 
         # Cache the total RDNT amount
         Discourse.cache.write(cache_key, total_rdnt_amount, expires_in: SiteSetting.radiant_user_cache_minutes.minutes)
