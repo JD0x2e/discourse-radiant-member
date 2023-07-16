@@ -140,34 +140,46 @@ module Radiant
     end
   end    
   
-  def self.get_loose_rdnt_in_wallet_amount(username, covalent_api_url, rdnt_token_address)
+  def self.get_loose_rdnt_in_wallet_amount(username, network_uri, rdnt_token_address)
     user = User.find_by_username(username)
     return nil unless user
-    
+  
     siwe_address = get_siwe_address_by_user(user)
     return nil unless siwe_address
-
-    # Get the API key from the site settings
-    api_key = SiteSetting.radiant_covalent_api_key
-
-    # Make sure you have a valid API key before proceeding
-    return nil if api_key.empty?
-    
-    url = "#{covalent_api_url}/#{siwe_address}/balances_v2/?&key=#{api_key}"
-    uri = URI(url)
-    response = Net::HTTP.get(uri)
-    data = JSON.parse(response)
-    items = data['data']['items']
-    
-    rdnt_token = items.find { |item| item['contract_address'].downcase == rdnt_token_address.downcase }
-    if rdnt_token
-      balance_in_wei = rdnt_token['balance'].to_i
-      balance_in_token = balance_in_wei / 1.0e18
-      balance_in_token
-    else
-      0
-    end
-  end
+  
+    # Remove "0x" from the start of the siwe address
+    siwe_address = siwe_address[2..-1] if siwe_address.start_with?("0x")
+  
+    uri = URI(network_uri)
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = true
+  
+    request = Net::HTTP::Post.new(uri, 'Content-Type' => 'application/json')
+  
+    # The data param should be 0x70a08231 followed by a 64 characters long hash with leading 0s followed by the user's siwe_address
+    data_param = "0x70a08231000000000000000000000000#{siwe_address}"
+  
+    request.body = {
+      "jsonrpc": "2.0",
+      "method": "eth_call",
+      "params": [{
+        "to": rdnt_token_address,
+        "data": data_param
+      }, "latest"],
+      "id": 1
+    }.to_json
+  
+    response = http.request(request)
+    result = JSON.parse(response.body)
+  
+    result_string = result['result'][2..-1]  # remove the "0x" from the beginning
+  
+    # Directly convert the hex to decimal and divide by 1e18
+    loose_rdnt_wei = result_string.to_i(16)
+    decimals = 10**18
+    loose_rdnt_ether = BigDecimal(loose_rdnt_wei) / BigDecimal(decimals)
+    loose_rdnt_ether.to_s('F')
+  end  
 
   def self.get_fully_vested_rdnt_amount(username, network_uri, contract_address)
     user = User.find_by_username(username)
