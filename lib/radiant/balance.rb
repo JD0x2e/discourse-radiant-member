@@ -4,10 +4,6 @@ module Radiant
   @radiant_uri_arbitrum = "https://api.thegraph.com/subgraphs/name/radiantcapitaldevelopment/radiantcapital"
   @radiant_uri_bsc = "https://api.thegraph.com/subgraphs/name/radiantcapitaldevelopment/radiant-bsc"
 
-  # Covalent API URL
-  @covalent_api_url_arbitrum = "https://api.covalenthq.com/v1/42161/address"
-  @covalent_api_url_bsc = "https://api.covalenthq.com/v1/56/address"
-
   # Token addresses arbitrum
   @rdnt_token_address_arbitrum = '0x3082cc23568ea640225c2467653db90e9250aaa0'
   @dlp_token_address_arbitrum = '0x32dF62dc3aEd2cD6224193052Ce665DC18165841'
@@ -109,7 +105,6 @@ module Radiant
         loose_rdnt_in_wallet_arbitrum = get_loose_rdnt_in_wallet_amount(user.username, SiteSetting.radiant_quicknode_arb, @rdnt_token_address_arbitrum)
         loose_rdnt_in_wallet_bsc = get_loose_rdnt_in_wallet_amount(user.username, SiteSetting.radiant_quicknode_bsc, @rdnt_token_address_bsc)
 
-        # Get fully vested amount from both chains
         fully_vested_rdnt_arbitrum = get_fully_vested_rdnt_amount(user.username, SiteSetting.radiant_quicknode_arb, @mfd_arbitrum)
         fully_vested_rdnt_bsc = get_fully_vested_rdnt_amount(user.username, SiteSetting.radiant_quicknode_bsc, @mfd_bsc)
 
@@ -254,7 +249,6 @@ module Radiant
       puts "got #{rdnt_amount_within_locked} RDNT within locked dLP"
   
       # Now fetch the loose RDNT balance
-      # Remove "0x" from the start of the address
       address = address[2..-1] if address.start_with?("0x")
 
       uri = URI(network_uri)
@@ -285,8 +279,6 @@ module Radiant
       unlocked_wei = BigDecimal(result_string.to_i(16).to_s)
       decimals = BigDecimal(10)**18
       unlocked_ether = unlocked_wei / decimals
-
-      puts "got #{unlocked_ether.to_s('F')} ether within loose balance"
 
       loose_balance_in_usd = unlocked_ether * lp_token_price_in_usd
       rdnt_amount_within_loose = (loose_balance_in_usd * multiplier) / price_of_rdnt_token
