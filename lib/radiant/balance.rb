@@ -106,8 +106,8 @@ module Radiant
         rdnt_amount_from_locked_and_loose_arbitrum = get_rdnt_amount_from_locked_and_loose_balance(user, @radiant_uri_arbitrum, @covalent_api_url_arbitrum, @rdnt_token_address_arbitrum, @dlp_token_address_arbitrum, 0.8)
         rdnt_amount_from_locked_and_loose_bsc = get_rdnt_amount_from_locked_and_loose_balance(user, @radiant_uri_bsc, @covalent_api_url_bsc, @rdnt_token_address_bsc, @dlp_token_address_bsc, 0.5)
 
-        loose_rdnt_in_wallet_arbitrum = get_loose_rdnt_in_wallet_amount(user.username, @covalent_api_url_arbitrum, @rdnt_token_address_arbitrum)
-        loose_rdnt_in_wallet_bsc = get_loose_rdnt_in_wallet_amount(user.username, @covalent_api_url_bsc, @rdnt_token_address_bsc)
+        loose_rdnt_in_wallet_arbitrum = get_loose_rdnt_in_wallet_amount(user.username, SiteSetting.radiant_quicknode_arb, @rdnt_token_address_arbitrum)
+        loose_rdnt_in_wallet_bsc = get_loose_rdnt_in_wallet_amount(user.username, SiteSetting.radiant_quicknode_bsc, @rdnt_token_address_bsc)
 
         # Get fully vested amount from both chains
         fully_vested_rdnt_arbitrum = get_fully_vested_rdnt_amount(user.username, SiteSetting.radiant_quicknode_arb, @mfd_arbitrum)
