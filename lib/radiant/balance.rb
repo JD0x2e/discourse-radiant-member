@@ -59,21 +59,28 @@ module Radiant
 
   def self.get_rdnt_amount(user)
     puts "now getting amount for #{user.username}"
+
+    siwe_address = get_siwe_address_by_user(user)
+    return nil unless siwe_address
   
     # Define cache key for the total RDNT amount
     name_total = "radiant_user_total-#{user.id}"
+    name_address = "siwe_address-#{user.id}"
 
-    # Try fetching the cached value
-    cached_value = Discourse.cache.read(name_total)
+    # Try fetching the cached values
+    cached_total_value = Discourse.cache.read(name_total)
+    cached_address_value = Discourse.cache.read(name_address)
 
-    # Check if it's the first time (no cache data) or cache has expired
-    if cached_value.nil? || cached_value == 0
-      puts "No cached data, fetching fresh data for #{user.username}"
-      total_rdnt_amount = fetch_and_cache_rdnt_amount(user, name_total)
+    current_address = get_siwe_address_by_user(user)
+
+    # Check if it's the first time (no cache data) or cache has expired, or the siwe address has changed
+    if cached_total_value.nil? || cached_total_value == 0 || current_address != cached_address_value
+      puts "No cached data, or SIWE address has changed. Fetching fresh data for #{user.username}"
+      total_rdnt_amount = fetch_and_cache_rdnt_amount(user, name_total, name_address, current_address)
     else
       # Use the cached value
       puts "Using cached data for #{user.username}"
-      total_rdnt_amount = cached_value
+      total_rdnt_amount = cached_total_value
     end
 
     # Update groups
@@ -96,8 +103,8 @@ module Radiant
     total_rdnt_amount.to_d.round(2, :truncate).to_f
   end
 
-  def self.fetch_and_cache_rdnt_amount(user, cache_key, force_refresh: false)
-    if force_refresh || Discourse.cache.read(cache_key).nil?
+  def self.fetch_and_cache_rdnt_amount(user, cache_key_total, cache_key_address, current_address, force_refresh: false)
+    if force_refresh || Discourse.cache.read(cache_key_total).nil? || current_address != Discourse.cache.read(cache_key_address)
         # Get amounts from both chains with the appropriate multipliers
         rdnt_amount_from_locked_and_loose_arbitrum = get_rdnt_amount_from_locked_and_loose_balance(user, @radiant_uri_arbitrum, SiteSetting.radiant_quicknode_arb, @rdnt_token_address_arbitrum, @dlp_token_address_arbitrum, 0.8)
         rdnt_amount_from_locked_and_loose_bsc = get_rdnt_amount_from_locked_and_loose_balance(user, @radiant_uri_bsc, SiteSetting.radiant_quicknode_bsc, @rdnt_token_address_bsc, @dlp_token_address_bsc, 0.5)
@@ -125,13 +132,14 @@ module Radiant
         # Sum amounts from both chains and the wallet
         total_rdnt_amount = rdnt_amount_from_locked_and_loose_arbitrum.to_f + rdnt_amount_from_locked_and_loose_bsc.to_f + loose_rdnt_in_wallet_arbitrum.to_f + loose_rdnt_in_wallet_bsc.to_f + fully_vested_rdnt_arbitrum.to_f + fully_vested_rdnt_bsc.to_f
 
-        # Cache the total RDNT amount
-        Discourse.cache.write(cache_key, total_rdnt_amount, expires_in: SiteSetting.radiant_user_cache_minutes.minutes)
+        # Cache the total RDNT amount and the siwe address
+        Discourse.cache.write(cache_key_total, total_rdnt_amount, expires_in: SiteSetting.radiant_user_cache_minutes.minutes)
+        Discourse.cache.write(cache_key_address, current_address, expires_in: SiteSetting.radiant_user_cache_minutes.minutes)
 
         total_rdnt_amount
     else
         # Read the cached value
-        Discourse.cache.read(cache_key)
+        Discourse.cache.read(cache_key_total)
     end
   end    
   
