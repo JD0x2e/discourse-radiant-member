@@ -103,8 +103,8 @@ module Radiant
   def self.fetch_and_cache_rdnt_amount(user, cache_key, force_refresh: false)
     if force_refresh || Discourse.cache.read(cache_key).nil?
         # Get amounts from both chains with the appropriate multipliers
-        rdnt_amount_from_locked_and_loose_arbitrum = get_rdnt_amount_from_locked_and_loose_balance(user, @radiant_uri_arbitrum, @covalent_api_url_arbitrum, @rdnt_token_address_arbitrum, @dlp_token_address_arbitrum, 0.8)
-        rdnt_amount_from_locked_and_loose_bsc = get_rdnt_amount_from_locked_and_loose_balance(user, @radiant_uri_bsc, @covalent_api_url_bsc, @rdnt_token_address_bsc, @dlp_token_address_bsc, 0.5)
+        rdnt_amount_from_locked_and_loose_arbitrum = get_rdnt_amount_from_locked_and_loose_balance(user, @radiant_uri_arbitrum, SiteSetting.radiant_quicknode_arb, @rdnt_token_address_arbitrum, @dlp_token_address_arbitrum, 0.8)
+        rdnt_amount_from_locked_and_loose_bsc = get_rdnt_amount_from_locked_and_loose_balance(user, @radiant_uri_bsc, SiteSetting.radiant_quicknode_bsc, @rdnt_token_address_bsc, @dlp_token_address_bsc, 0.5)
 
         loose_rdnt_in_wallet_arbitrum = get_loose_rdnt_in_wallet_amount(user.username, SiteSetting.radiant_quicknode_arb, @rdnt_token_address_arbitrum)
         loose_rdnt_in_wallet_bsc = get_loose_rdnt_in_wallet_amount(user.username, SiteSetting.radiant_quicknode_bsc, @rdnt_token_address_bsc)
@@ -220,7 +220,7 @@ module Radiant
     unlocked_ether.to_s('F')
   end
       
-  def self.get_rdnt_amount_from_locked_and_loose_balance(user, radiant_uri, covalent_api_url, rdnt_token_address, dlp_token_address, multiplier)
+  def self.get_rdnt_amount_from_locked_and_loose_balance(user, radiant_uri, network_uri, rdnt_token_address, dlp_token_address, multiplier)
     begin
       puts "Fetching address.."
       address = get_siwe_address_by_user(user)
@@ -254,30 +254,48 @@ module Radiant
       puts "got #{rdnt_amount_within_locked} RDNT within locked dLP"
   
       # Now fetch the loose RDNT balance
-      api_key = SiteSetting.radiant_covalent_api_key
-      return 0 if api_key.empty?
-  
-      url = "#{covalent_api_url}/#{address}/balances_v2/?&key=#{api_key}"
-      uri = URI(url)
-      response = Net::HTTP.get(uri)
-      data = JSON.parse(response)
-      items = data['data']['items']
-  
-      loose_balance = items.find { |item| item['contract_address'].downcase == dlp_token_address.downcase }
-      if loose_balance
-        loose_balance_dlp = loose_balance['balance'].to_i
-        loose_balance_formatted_dlp = loose_balance_dlp / 1.0e18
-        loose_balance_in_usd = loose_balance_formatted_dlp * lp_token_price_in_usd
-        rdnt_amount_within_loose = (loose_balance_in_usd * multiplier) / price_of_rdnt_token
-        puts "got #{rdnt_amount_within_loose} RDNT within loose dLP"
-      else
-        rdnt_amount_within_loose = 0
-      end
-  
+      # Remove "0x" from the start of the address
+      address = address[2..-1] if address.start_with?("0x")
+
+      uri = URI(network_uri)
+      http = Net::HTTP.new(uri.host, uri.port)
+      http.use_ssl = true
+
+      request = Net::HTTP::Post.new(uri, 'Content-Type' => 'application/json')
+
+      # The data param should be 0x70a08231 followed by a 64 characters long hash with leading 0s followed by the user's address
+      data_param = "0x70a08231000000000000000000000000#{address}"
+
+      request.body = {
+        "jsonrpc": "2.0",
+        "method": "eth_call",
+        "params": [{
+          "to": dlp_token_address,
+          "data": data_param
+        }, "latest"],
+        "id": 1
+      }.to_json
+
+      response = http.request(request)
+      result = JSON.parse(response.body)
+
+      result_string = result['result'][2..-1]  # remove the "0x" from the beginning
+
+      # Directly convert the hex to decimal and divide by 1e18
+      unlocked_wei = BigDecimal(result_string.to_i(16).to_s)
+      decimals = BigDecimal(10)**18
+      unlocked_ether = unlocked_wei / decimals
+
+      puts "got #{unlocked_ether.to_s('F')} ether within loose balance"
+
+      loose_balance_in_usd = unlocked_ether * lp_token_price_in_usd
+      rdnt_amount_within_loose = (loose_balance_in_usd * multiplier) / price_of_rdnt_token
+      puts "got #{rdnt_amount_within_loose} RDNT within loose dLP"
+
       return (rdnt_amount_within_locked + rdnt_amount_within_loose).to_d.round(2, :truncate).to_f
-    rescue => e
+      rescue => e
       puts "something went wrong getting locked and loose rdnt amounts #{e}"
       return 0
-    end
-  end  
+      end
+  end
 end
