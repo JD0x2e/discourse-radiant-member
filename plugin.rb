@@ -7,8 +7,12 @@
 # url: https://github.com/literatecomputing/discourse-radiant-member
 # required_version: 2.7.0
 
-gem "eth", "0.5.11"
-require 'eth'
+gem "eth", "0.5.11", require: true
+gem "forwardable", "1.3.3", require: false
+gem "keccak", "1.3.0", require: false
+gem "openssl", "2.2", require: false
+gem "rbsecp256k1", "6.0.0", require: false
+gem "scrypt", "3.0.7", require: false
 
 enabled_site_setting :radiant_member_enabled
 module ::RadiantMemberModule
