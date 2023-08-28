@@ -75,6 +75,7 @@ PLATFORMS
 
 DEPENDENCIES
   eth
+  forwardable
   rubocop-discourse
   syntax_tree
   syntax_tree-disable_ternary
