@@ -1,6 +1,4 @@
 # frozen_string_literal: true
-require 'eth'
-
 module Radiant
   # URIs for different chains
   @radiant_uri_arbitrum = "https://api.thegraph.com/subgraphs/name/radiantcapitaldevelopment/radiantcapital"
