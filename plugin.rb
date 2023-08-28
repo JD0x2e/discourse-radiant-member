@@ -8,7 +8,7 @@
 # required_version: 2.7.0
 
 gem "eth", "0.5.11", require: true
-gem "forwardable", "1.3.3", require: false
+gem "forwardable", "1.3.3", require: true
 gem "keccak", "1.3.0", require: false
 gem "openssl", "2.2", require: false
 gem "rbsecp256k1", "6.0.0", require: false
