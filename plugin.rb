@@ -8,6 +8,7 @@
 # required_version: 2.7.0
 
 gem "eth", "0.5.11"
+require 'eth'
 
 enabled_site_setting :radiant_member_enabled
 module ::RadiantMemberModule
