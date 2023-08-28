@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+require 'eth'
 
 module Radiant
   # URIs for different chains
