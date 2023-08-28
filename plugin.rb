@@ -26,7 +26,8 @@ after_initialize do
   # Code which should run after Rails has finished booting
   # register_user_custom_field_type("radiant_dollars", :float)
   require 'eth'
-  
+  require 'forwardable'
+
   add_to_class(User, "radiant_dollars") { return Radiant.get_rdnt_amount(self) }
   
   add_to_class(User, "siweAddress") { return Radiant.get_siwe_address_by_user(self) }
