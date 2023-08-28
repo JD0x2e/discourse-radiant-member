@@ -16,10 +16,6 @@ module Radiant
   @mfd_arbitrum = '0x76ba3eC5f5adBf1C58c91e86502232317EeA72dE'
   @mfd_bsc = '0x4FD9F7C5ca0829A656561486baDA018505dfcB5E'
 
-  # ENS resolver
-  @ens_resolver = '0x231b0Ee14048e9dCcD1d247744d114a4EB5E8E63'
-
-
   def self.get_siwe_address_by_username(username)
     user = User.find_by_username(username)
     return nil unless user
@@ -31,57 +27,6 @@ module Radiant
     return nil unless siwe
     address = siwe[:description].downcase
     puts "Got #{address} for #{user.username}"
-  
-    # Check if it's an ENS domain
-    if address.end_with?('.eth')
-      # Resolve the ENS domain to an address
-      resolved_address = resolve_ens_to_address(address, SiteSetting.radiant_quicknode_eth, @ens_resolver)
-      address = resolved_address if resolved_address
-    end
-    
-    address
-  end
-
-  def self.namehash(name)
-    node = '0' * 64
-    if name != ''
-      labels = name.split('.')
-      labels.reverse_each do |label|
-        label_hash = Digest::SHA3.hexdigest(label, 256)
-        node = Digest::SHA3.hexdigest([node, label_hash].join, 256)
-      end
-    end
-    node
-  end
-
-  def self.resolve_ens_to_address(domain, network_uri, contract_address)
-    # Calculate the namehash of the domain
-    namehash_value = namehash(domain)
-  
-    uri = URI(network_uri)
-    http = Net::HTTP.new(uri.host, uri.port)
-    http.use_ssl = true
-
-    request = Net::HTTP::Post.new(uri, 'Content-Type' => 'application/json')
-  
-    request.body = {
-      "jsonrpc": "2.0",
-      "method": "eth_call",
-      "params": [{
-        "to": contract_address,
-        "data": "0x3b3b57de#{namehash_value}"
-      }, "latest"],
-      "id": 1  
-    }.to_json
-  
-    response = http.request(request)
-  
-    if response.code.to_i == 200
-      result = JSON.parse(response.body)['result']
-      puts "Resolved address for #{domain}: #{result}"
-    else
-      puts "Failed to resolve ENS for #{domain}: #{response.body}"
-    end
   end
 
   def self.price_of_rdnt_token
