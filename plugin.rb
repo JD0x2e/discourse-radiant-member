@@ -7,7 +7,7 @@
 # url: https://github.com/literatecomputing/discourse-radiant-member
 # required_version: 2.7.0
 
-gem "eth"
+gem 'eth', '0.5.11', { source: 'https://rubygems.org' }
 
 enabled_site_setting :radiant_member_enabled
 module ::RadiantMemberModule
