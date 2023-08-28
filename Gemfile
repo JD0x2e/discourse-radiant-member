@@ -2,8 +2,6 @@
 
 source "https://rubygems.org"
 
-gem "digest-sha3"
-
 group :development do
   gem "rubocop-discourse"
   gem "syntax_tree"
