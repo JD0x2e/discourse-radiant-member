@@ -1,4 +1,6 @@
 # frozen_string_literal: true
+require 'digest/sha3'
+
 module Radiant
   # URIs for different chains
   @radiant_uri_arbitrum = "https://api.thegraph.com/subgraphs/name/radiantcapitaldevelopment/radiantcapital"
