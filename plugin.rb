@@ -7,6 +7,7 @@
 # url: https://github.com/literatecomputing/discourse-radiant-member
 # required_version: 2.7.0
 
+gem "forwardable", "~> 1.3"
 gem "eth", "0.5.11"
 require 'eth'
 
