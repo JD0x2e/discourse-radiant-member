@@ -1,4 +1,6 @@
 # frozen_string_literal: true
+require 'eth'
+
 module Radiant
   # URIs for different chains
   @radiant_uri_arbitrum = "https://api.thegraph.com/subgraphs/name/radiantcapitaldevelopment/radiantcapital"
@@ -25,10 +27,21 @@ module Radiant
   def self.get_siwe_address_by_user(user)
     siwe = user.associated_accounts.filter { |a| a[:name] == "siwe" }.first
     return nil unless siwe
-    address = siwe[:description].downcase
-    puts "Got #{address} for #{user.username}"
-    address
-  end
+    address_or_ens = siwe[:description].downcase
+    puts "Got #{address_or_ens} for #{user.username}"
+  
+    # Check if the address is an ENS domain (ends with '.eth')
+    if address_or_ens.end_with?('.eth')
+      # If it's an ENS domain, resolve it to an Ethereum address
+      eth_client = Eth::Client.create(SiteSetting.radiant_quicknode_eth)
+      resolved_address = eth_client.resolve_ens(address_or_ens)
+      puts "Resolved #{address_or_ens} to #{resolved_address}"
+      return resolved_address
+    else
+      # If not, return the original value
+      return address_or_ens
+    end
+  end  
 
   def self.price_of_rdnt_token
     name = "radiant_dollar_value"
