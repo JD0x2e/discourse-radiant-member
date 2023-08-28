@@ -6,6 +6,4 @@ group :development do
   gem "rubocop-discourse"
   gem "syntax_tree"
   gem "syntax_tree-disable_ternary"
-  # gem "eth"
-  # gem "forwardable"
 end
