@@ -42,7 +42,7 @@ module Radiant
     address
   end
 
-  def namehash(name)
+  def self.namehash(name)
     node = '0' * 64
     if name != ''
       labels = name.split('.')
@@ -54,7 +54,7 @@ module Radiant
     node
   end
 
-  def resolve_ens_to_address(domain, network_uri, contract_address)
+  def self.resolve_ens_to_address(domain, network_uri, contract_address)
     # Calculate the namehash of the domain
     namehash_value = namehash(domain)
   
