@@ -27,6 +27,7 @@ module Radiant
     return nil unless siwe
     address = siwe[:description].downcase
     puts "Got #{address} for #{user.username}"
+    address
   end
 
   def self.price_of_rdnt_token
