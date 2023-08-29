@@ -6,4 +6,3 @@ en:
     radiant_dollar_cache_minutes: minutes to wait before retrieving the radiant token value in dollars
     radiant_quicknode_arb: Quicknode URL + API Key for Arbitrum
     radiant_quicknode_bsc: Quicknode URL + API Key for BSC
-    radiant_quicknode_eth: Quicknode URL + API Key for Ethereum

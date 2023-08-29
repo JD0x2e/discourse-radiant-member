@@ -17,6 +17,3 @@ plugins:
   radiant_quicknode_bsc:
     default: ""
     client: false
-  radiant_quicknode_eth:
-    default: ""
-    client: false
