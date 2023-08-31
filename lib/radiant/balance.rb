@@ -32,13 +32,18 @@ module Radiant
     if address_or_ens.end_with?('.eth')
       # If it's an ENS domain, resolve it to an Ethereum address
       resolved_address = resolve_ens_name(address_or_ens)
-      puts "Resolved #{address_or_ens} to #{resolved_address}"
-      return resolved_address
+      if resolved_address
+        puts "Resolved #{address_or_ens} to #{resolved_address}"
+        return resolved_address
+      else
+        puts "Failed to resolve #{address_or_ens}. Using original address."
+        return address_or_ens
+      end
     else
       # If not, return the original value
       return address_or_ens
     end
-  end
+  end  
   
   def resolve_ens_name(ens_name)
     uri = URI.parse("https://api.ensideas.com/ens/resolve/#{ens_name}")
