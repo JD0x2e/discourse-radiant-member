@@ -31,15 +31,28 @@ module Radiant
     # Check if the address is an ENS domain (ends with '.eth')
     if address_or_ens.end_with?('.eth')
       # If it's an ENS domain, resolve it to an Ethereum address
-      eth_client = Eth::Client.create(SiteSetting.radiant_quicknode_eth)
-      resolved_address = eth_client.resolve_ens(address_or_ens)
+      resolved_address = resolve_ens_name(address_or_ens)
       puts "Resolved #{address_or_ens} to #{resolved_address}"
       return resolved_address
     else
       # If not, return the original value
       return address_or_ens
     end
-  end  
+  end
+  
+  def resolve_ens_name(ens_name)
+    uri = URI.parse("https://api.ensideas.com/ens/resolve/#{ens_name}")
+    response = Net::HTTP.get_response(uri)
+  
+    if response.is_a?(Net::HTTPSuccess)
+      parsed_response = JSON.parse(response.body)
+      return parsed_response['address'] # or whatever information you need
+    else
+      # Handle error
+      puts "Failed to resolve ENS name: #{response.code} - #{response.message}"
+      return nil
+    end
+  end
 
   def self.price_of_rdnt_token
     name = "radiant_dollar_value"
