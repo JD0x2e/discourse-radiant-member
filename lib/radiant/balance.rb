@@ -33,6 +33,7 @@ module Radiant
       # If it's an ENS domain, resolve it to an Ethereum address
       resolved_address = resolve_ens_name(address_or_ens)
       if resolved_address
+        resolved_address = resolved_address.downcase
         puts "Resolved #{address_or_ens} to #{resolved_address}"
         return resolved_address
       else
