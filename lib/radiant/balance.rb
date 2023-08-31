@@ -45,7 +45,7 @@ module Radiant
     end
   end  
   
-  def resolve_ens_name(ens_name)
+  def self.resolve_ens_name(ens_name)
     uri = URI.parse("https://api.ensideas.com/ens/resolve/#{ens_name}")
     response = Net::HTTP.get_response(uri)
   
