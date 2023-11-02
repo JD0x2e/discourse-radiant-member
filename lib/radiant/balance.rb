@@ -3,6 +3,7 @@ module Radiant
   # URIs for different chains
   @radiant_uri_arbitrum = "https://api.thegraph.com/subgraphs/name/radiantcapitaldevelopment/radiantcapital"
   @radiant_uri_bsc = "https://api.thegraph.com/subgraphs/name/radiantcapitaldevelopment/radiant-bsc"
+  @radiant_uri_ethereum = "https://gateway-arbitrum.network.thegraph.com/api/[api_key_ethereum]/subgraphs/id/683Qhh8TEta6qS5gdTpXCs84xnrp77fPWGQyBmRe6qgo"
 
   # Token addresses arbitrum
   @rdnt_token_address_arbitrum = '0x3082cc23568ea640225c2467653db90e9250aaa0'
@@ -12,9 +13,14 @@ module Radiant
   @rdnt_token_address_bsc = '0xf7de7e8a6bd59ed41a4b5fe50278b3b7f31384df'
   @dlp_token_address_bsc = '0x346575fC7f07E6994D76199E41D13dC1575322E1'
 
+  # Token addresses ethereum
+  @rdnt_token_address_ethereum = '0x137dDB47Ee24EaA998a535Ab00378d6BFa84F893'
+  @dlp_token_address_ethereum = '0xcF7b51ce5755513d4bE016b0e28D6EDEffa1d52a'
+
   # MFD contract address
   @mfd_arbitrum = '0x76ba3eC5f5adBf1C58c91e86502232317EeA72dE'
   @mfd_bsc = '0x4FD9F7C5ca0829A656561486baDA018505dfcB5E'
+  @mfd_ethereum = '0x28E395a54a64284DBA39652921Cd99924f4e3797'
 
   def self.get_siwe_address_by_username(username)
     user = User.find_by_username(username)
@@ -134,32 +140,40 @@ module Radiant
 
   def self.fetch_and_cache_rdnt_amount(user, cache_key_total, cache_key_address, current_address, force_refresh: false)
     if force_refresh || Discourse.cache.read(cache_key_total).nil? || current_address != Discourse.cache.read(cache_key_address)
-        # Get amounts from both chains with the appropriate multipliers
+        # Get amounts from all chains with the appropriate multipliers
         rdnt_amount_from_locked_and_loose_arbitrum = get_rdnt_amount_from_locked_and_loose_balance(user, @radiant_uri_arbitrum, SiteSetting.radiant_quicknode_arb, @rdnt_token_address_arbitrum, @dlp_token_address_arbitrum, 0.8)
         rdnt_amount_from_locked_and_loose_bsc = get_rdnt_amount_from_locked_and_loose_balance(user, @radiant_uri_bsc, SiteSetting.radiant_quicknode_bsc, @rdnt_token_address_bsc, @dlp_token_address_bsc, 0.5)
+        rdnt_amount_from_locked_and_loose_ethereum = get_rdnt_amount_from_locked_and_loose_balance(user, @radiant_uri_ethereum, SiteSetting.radiant_quicknode_eth, @rdnt_token_address_ethereum, @dlp_token_address_ethereum, 0.8)
 
         loose_rdnt_in_wallet_arbitrum = get_loose_rdnt_in_wallet_amount(user.username, SiteSetting.radiant_quicknode_arb, @rdnt_token_address_arbitrum)
         loose_rdnt_in_wallet_bsc = get_loose_rdnt_in_wallet_amount(user.username, SiteSetting.radiant_quicknode_bsc, @rdnt_token_address_bsc)
+        loose_rdnt_in_wallet_ethereum = get_loose_rdnt_in_wallet_amount(user.username, SiteSetting.radiant_quicknode_eth, @rdnt_token_address_ethereum)
 
         fully_vested_rdnt_arbitrum = get_fully_vested_rdnt_amount(user.username, SiteSetting.radiant_quicknode_arb, @mfd_arbitrum)
         fully_vested_rdnt_bsc = get_fully_vested_rdnt_amount(user.username, SiteSetting.radiant_quicknode_bsc, @mfd_bsc)
+        fully_vested_rdnt_ethereum = get_fully_vested_rdnt_amount(user.username, SiteSetting.radiant_quicknode_eth, @mfd_ethereum)
 
         # Convert nil to 0
         loose_rdnt_in_wallet_arbitrum = loose_rdnt_in_wallet_arbitrum || 0
         loose_rdnt_in_wallet_bsc = loose_rdnt_in_wallet_bsc || 0
+        loose_rdnt_in_wallet_ethereum = loose_rdnt_in_wallet_ethereum || 0
         fully_vested_rdnt_arbitrum = fully_vested_rdnt_arbitrum || 0
         fully_vested_rdnt_bsc = fully_vested_rdnt_bsc || 0
+        fully_vested_rdnt_ethereum = fully_vested_rdnt_ethereum || 0
 
         # Log the amounts fetched from each chain
         puts "rdnt_amount_from_locked_and_loose_arbitrum: #{rdnt_amount_from_locked_and_loose_arbitrum}"
         puts "rdnt_amount_from_locked_and_loose_bsc: #{rdnt_amount_from_locked_and_loose_bsc}"
+        puts "rdnt_amount_from_locked_and_loose_ethereum: #{rdnt_amount_from_locked_and_loose_ethereum}"
         puts "loose_rdnt_in_wallet_arbitrum: #{loose_rdnt_in_wallet_arbitrum}"
         puts "loose_rdnt_in_wallet_bsc: #{loose_rdnt_in_wallet_bsc}"
+        puts "loose_rdnt_in_wallet_ethereum: #{loose_rdnt_in_wallet_ethereum}"
         puts "fully_vested_rdnt_arbitrum: #{fully_vested_rdnt_arbitrum}"
         puts "fully_vested_rdnt_bsc: #{fully_vested_rdnt_bsc}"
+        puts "fully_vested_rdnt_ethereum: #{fully_vested_rdnt_ethereum}"
 
-        # Sum amounts from both chains and the wallet
-        total_rdnt_amount = rdnt_amount_from_locked_and_loose_arbitrum.to_f + rdnt_amount_from_locked_and_loose_bsc.to_f + loose_rdnt_in_wallet_arbitrum.to_f + loose_rdnt_in_wallet_bsc.to_f + fully_vested_rdnt_arbitrum.to_f + fully_vested_rdnt_bsc.to_f
+        # Sum amounts from all chains and the wallet
+        total_rdnt_amount = rdnt_amount_from_locked_and_loose_arbitrum.to_f + rdnt_amount_from_locked_and_loose_bsc.to_f + rdnt_amount_from_locked_and_loose_ethereum.to_f + loose_rdnt_in_wallet_arbitrum.to_f + loose_rdnt_in_wallet_bsc.to_f + loose_rdnt_in_wallet_ethereum.to_f + fully_vested_rdnt_arbitrum.to_f + fully_vested_rdnt_bsc.to_f + fully_vested_rdnt_ethereum.to_f
 
         # Cache the total RDNT amount and the siwe address
         Discourse.cache.write(cache_key_total, total_rdnt_amount, expires_in: SiteSetting.radiant_user_cache_minutes.minutes)
@@ -253,6 +267,15 @@ module Radiant
   end
       
   def self.get_rdnt_amount_from_locked_and_loose_balance(user, radiant_uri, network_uri, rdnt_token_address, dlp_token_address, multiplier)
+    # Append the API key if the placeholder is present
+    if radiant_uri.include?("[api-key-ethereum]")
+      api_key = SiteSetting.radiant_ethereum_subgraph_api_key
+      radiant_uri = radiant_uri.sub("[api-key-ethereum]", api_key)
+    elsif radiant_uri.include?("[api-key-arbitrum]")
+      api_key = SiteSetting.radiant_arbitrum_subgraph_api_key
+      radiant_uri = radiant_uri.sub("[api-key-arbitrum]", api_key)
+    end
+    
     begin
       puts "Fetching address.."
       address = get_siwe_address_by_user(user)
