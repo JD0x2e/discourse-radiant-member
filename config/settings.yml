@@ -17,3 +17,6 @@ plugins:
   radiant_quicknode_bsc:
     default: ""
     client: false
+  radiant_subgraph_api_key:
+    default: ""
+    client: false
