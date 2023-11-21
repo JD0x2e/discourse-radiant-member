@@ -193,7 +193,19 @@ module Radiant
         # Read the cached value
         Discourse.cache.read(cache_key_total)
     end
-  end    
+  end
+  
+  def self.clear_rdnt_amount_cache_for_user(username)
+    user = User.find_by_username(username)
+    return unless user
+    
+    cache_key_total = "radiant_user_total-#{user_id}"
+    cache_key_address = "siwe_address-#{user_id}"
+  
+    # Clearing the cached values
+    Discourse.cache.delete(cache_key_total)
+    Discourse.cache.delete(cache_key_address)
+  end
   
   def self.get_loose_rdnt_in_wallet_amount(username, network_uri, rdnt_token_address)
     user = User.find_by_username(username)
