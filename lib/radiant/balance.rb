@@ -3,7 +3,10 @@ module Radiant
   # URIs for different chains
   @radiant_uri_arbitrum = "https://api.thegraph.com/subgraphs/name/radiantcapitaldevelopment/radiantcapital"
   @radiant_uri_bsc = "https://api.thegraph.com/subgraphs/name/radiantcapitaldevelopment/radiant-bsc"
-  @radiant_uri_ethereum = "https://gateway-arbitrum.network.thegraph.com/api/[api_key_ethereum]/subgraphs/id/683Qhh8TEta6qS5gdTpXCs84xnrp77fPWGQyBmRe6qgo"
+  @radiant_uri_ethereum = "https://gateway-arbitrum.network.thegraph.com/api/[api_key]/subgraphs/id/683Qhh8TEta6qS5gdTpXCs84xnrp77fPWGQyBmRe6qgo"
+
+  @radiant_uri_dlp_price_arbitrum = "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/27aofQwkYx8ZLavxEhUDDsH9gSKSG1E1z9PFDsbzcrog"
+  @radiant_uri_dlp_price_ethereum = "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/29DtFfTWEyo2WGHVusN9Mq9zuVQo5VwfTweMwx9DWcf2"
 
   # Token addresses arbitrum
   @rdnt_token_address_arbitrum = '0x3082cc23568ea640225c2467653db90e9250aaa0'
@@ -265,15 +268,50 @@ module Radiant
     unlocked_ether = BigDecimal(unlocked_wei) / BigDecimal(decimals)
     unlocked_ether.to_s('F')
   end
+
+  def self.get_lp_token_price(radiant_uri)
+    # Append the API key if the placeholder is present
+    if radiant_uri.include?("[api-key]")
+      api_key = SiteSetting.radiant_subgraph_api_key
+      radiant_uri = radiant_uri.sub("[api-key]", api_key)
+    end
+    
+    uri = URI.parse(radiant_uri)
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = uri.scheme == 'https'
+  
+    request = Net::HTTP::Post.new(uri, 'Content-Type' => 'application/json')
+    request.body = {
+      "query" => 'query Lock { lpTokenPrice(id: "1") { price } }'
+    }.to_json
+  
+    response = http.request(request)
+  
+    # Check for a successful response
+    if response.is_a?(Net::HTTPSuccess)
+      parsed_body = JSON.parse(response.body)
+      puts "got parsed_body: #{parsed_body}"
+  
+      # Check if the required data is in the response
+      if parsed_body['data'] && parsed_body['data']['lpTokenPrice']
+        lp_token_price = parsed_body['data']['lpTokenPrice']['price'].to_i
+        lp_token_price
+      else
+        puts "lpTokenPrice not found in the response"
+        nil
+      end
+    else
+      # Handle error or return a default value
+      puts "Failed to fetch lpTokenPrice: #{response.code} - #{response.message}"
+      nil
+    end
+  end  
       
   def self.get_rdnt_amount_from_locked_and_loose_balance(user, radiant_uri, network_uri, rdnt_token_address, dlp_token_address, multiplier)
     # Append the API key if the placeholder is present
-    if radiant_uri.include?("[api-key-ethereum]")
-      api_key = SiteSetting.radiant_ethereum_subgraph_api_key
-      radiant_uri = radiant_uri.sub("[api-key-ethereum]", api_key)
-    elsif radiant_uri.include?("[api-key-arbitrum]")
-      api_key = SiteSetting.radiant_arbitrum_subgraph_api_key
-      radiant_uri = radiant_uri.sub("[api-key-arbitrum]", api_key)
+    if radiant_uri.include?("[api-key]")
+      api_key = SiteSetting.radiant_subgraph_api_key
+      radiant_uri_ = radiant_uri.sub("[api-key]", api_key)
     end
     
     begin
