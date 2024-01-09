@@ -6,6 +6,7 @@ module Radiant
   @radiant_uri_ethereum = "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/683Qhh8TEta6qS5gdTpXCs84xnrp77fPWGQyBmRe6qgo"
 
   @radiant_uri_dlp_price_arbitrum = "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/27aofQwkYx8ZLavxEhUDDsH9gSKSG1E1z9PFDsbzcrog"
+  @radiant_uri_dlp_price_bsc = "https://thegraph.com/hosted-service/subgraph/radiantcapitaldevelopment/bsc-ii"
   @radiant_uri_dlp_price_ethereum = "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/29DtFfTWEyo2WGHVusN9Mq9zuVQo5VwfTweMwx9DWcf2"
 
   # Token addresses arbitrum
@@ -151,7 +152,7 @@ module Radiant
     if force_refresh || Discourse.cache.read(cache_key_total).nil? || current_address != Discourse.cache.read(cache_key_address)
         # Get amounts from all chains with the appropriate multipliers
         rdnt_amount_from_locked_and_loose_arbitrum = get_rdnt_amount_from_locked_and_loose_balance(user, @radiant_uri_arbitrum, @radiant_uri_dlp_price_arbitrum, SiteSetting.radiant_quicknode_arb, @rdnt_token_address_arbitrum, @dlp_token_address_arbitrum, 0.8)
-        rdnt_amount_from_locked_and_loose_bsc = get_rdnt_amount_from_locked_and_loose_balance_bsc(user, @radiant_uri_bsc, SiteSetting.radiant_quicknode_bsc, @rdnt_token_address_bsc, @dlp_token_address_bsc, 0.5)
+        rdnt_amount_from_locked_and_loose_bsc = get_rdnt_amount_from_locked_and_loose_balance(user, @radiant_uri_bsc, @radiant_uri_dlp_price_bsc, SiteSetting.radiant_quicknode_bsc, @rdnt_token_address_bsc, @dlp_token_address_bsc, 0.5)
         rdnt_amount_from_locked_and_loose_ethereum = get_rdnt_amount_from_locked_and_loose_balance(user, @radiant_uri_ethereum, @radiant_uri_dlp_price_ethereum, SiteSetting.radiant_quicknode_eth, @rdnt_token_address_ethereum, @dlp_token_address_ethereum, 0.8)
 
         loose_rdnt_in_wallet_arbitrum = get_loose_rdnt_in_wallet_amount(user.username, SiteSetting.radiant_quicknode_arb, @rdnt_token_address_arbitrum)
@@ -351,88 +352,6 @@ module Radiant
   
       locked_balance = parsed_body["data"]["lockeds"][0]["lockedBalance"].to_i
       lp_token_price = get_lp_token_price(radiant_uri_dlp_price)
-      lp_token_price_in_usd = lp_token_price / 1e8
-      locked_balance_formatted = locked_balance / 1e18
-      locked_balance_in_usd = locked_balance_formatted * lp_token_price_in_usd
-      rdnt_amount_within_locked = (locked_balance_in_usd * multiplier) / price_of_rdnt_token
-      puts "got #{rdnt_amount_within_locked} RDNT within locked dLP"
-  
-      # Now fetch the loose RDNT balance
-      address = address[2..-1] if address.start_with?("0x")
-
-      uri = URI(network_uri)
-      http = Net::HTTP.new(uri.host, uri.port)
-      http.use_ssl = true
-
-      request = Net::HTTP::Post.new(uri, 'Content-Type' => 'application/json')
-
-      # The data param should be 0x70a08231 followed by a 64 characters long hash with leading 0s followed by the user's address
-      data_param = "0x70a08231000000000000000000000000#{address}"
-
-      request.body = {
-        "jsonrpc": "2.0",
-        "method": "eth_call",
-        "params": [{
-          "to": dlp_token_address,
-          "data": data_param
-        }, "latest"],
-        "id": 1
-      }.to_json
-
-      response = http.request(request)
-      result = JSON.parse(response.body)
-
-      result_string = result['result'][2..-1]  # remove the "0x" from the beginning
-
-      # Directly convert the hex to decimal and divide by 1e18
-      unlocked_wei = BigDecimal(result_string.to_i(16).to_s)
-      decimals = BigDecimal(10)**18
-      unlocked_ether = unlocked_wei / decimals
-
-      loose_balance_in_usd = unlocked_ether * lp_token_price_in_usd
-      rdnt_amount_within_loose = (loose_balance_in_usd * multiplier) / price_of_rdnt_token
-      puts "got #{rdnt_amount_within_loose} RDNT within loose dLP"
-
-      return (rdnt_amount_within_locked + rdnt_amount_within_loose).to_d.round(2, :truncate).to_f
-      rescue => e
-      puts "something went wrong getting locked and loose rdnt amounts #{e}"
-      return 0
-      end
-  end
-      
-  def self.get_rdnt_amount_from_locked_and_loose_balance_bsc(user, radiant_uri, network_uri, rdnt_token_address, dlp_token_address, multiplier)
-    # Append the API key if the placeholder is present
-    if radiant_uri.include?("[api-key]")
-      api_key = SiteSetting.radiant_subgraph_api_key
-      radiant_uri = radiant_uri.sub("[api-key]", api_key)
-    end
-    
-    begin
-      puts "Fetching address.."
-      address = get_siwe_address_by_user(user)
-      if address.nil?
-        puts "User has not connected their wallet."
-        return 0
-      end
-      uri = URI(radiant_uri)
-      req = Net::HTTP::Post.new(uri)
-      req.content_type = "application/json"
-      req.body = {
-        "query" =>
-          'query Lock($address: String!) { lockeds(id: $address, where: {user_: {id: $address}}, orderBy: timestamp, orderDirection: desc, first: 1) { lockedBalance timestamp } lpTokenPrice(id: "1") { price } }',
-        "variables" => {
-          "address" => address,
-        },
-      }.to_json
-      req_options = { use_ssl: uri.scheme == "https" }
-      puts "getting #{req} from #{radiant_uri} with #{address}"
-      res = Net::HTTP.start(uri.hostname, uri.port, req_options) { |http| http.request(req) }
-      # puts "got something #{res}"
-      parsed_body = JSON.parse(res.body)
-      puts "got parsed_body: #{parsed_body}"
-  
-      locked_balance = parsed_body["data"]["lockeds"][0]["lockedBalance"].to_i
-      lp_token_price = parsed_body["data"]["lpTokenPrice"]["price"].to_i
       lp_token_price_in_usd = lp_token_price / 1e8
       locked_balance_formatted = locked_balance / 1e18
       locked_balance_in_usd = locked_balance_formatted * lp_token_price_in_usd
