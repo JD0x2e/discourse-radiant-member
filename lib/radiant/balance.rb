@@ -308,17 +308,16 @@ module Radiant
       puts "got parsed_body: #{parsed_body}"
   
       # Check if the required data is in the response
-      if parsed_body['data'] && parsed_body['data']['lpTokenPrice']
+      if parsed_body['data'] && parsed_body['data']['lpTokenPrice'] && parsed_body['data']['lpTokenPrice']['price']
         lp_token_price = parsed_body['data']['lpTokenPrice']['price'].to_i
-        lp_token_price
       else
         puts "lpTokenPrice not found in the response"
-        nil
+        return nil
       end
     else
       # Handle error or return a default value
       puts "Failed to fetch lpTokenPrice: #{response.code} - #{response.message}"
-      nil
+      return nil
     end
   end
   
