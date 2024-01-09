@@ -6,7 +6,7 @@ module Radiant
   @radiant_uri_ethereum = "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/683Qhh8TEta6qS5gdTpXCs84xnrp77fPWGQyBmRe6qgo"
 
   @radiant_uri_dlp_price_arbitrum = "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/27aofQwkYx8ZLavxEhUDDsH9gSKSG1E1z9PFDsbzcrog"
-  @radiant_uri_dlp_price_bsc = "https://thegraph.com/hosted-service/subgraph/radiantcapitaldevelopment/bsc-ii"
+  @radiant_uri_dlp_price_bsc = "https://api.thegraph.com/subgraphs/name/radiantcapitaldevelopment/bsc-ii"
   @radiant_uri_dlp_price_ethereum = "https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/29DtFfTWEyo2WGHVusN9Mq9zuVQo5VwfTweMwx9DWcf2"
 
   # Token addresses arbitrum
