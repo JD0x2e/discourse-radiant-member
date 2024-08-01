@@ -20,6 +20,9 @@ plugins:
   radiant_quicknode_eth:
     default: ""
     client: false
+  radiant_quicknode_base:
+    default: ""
+    client: false
   radiant_subgraph_api_key:
     default: ""
     client: false
