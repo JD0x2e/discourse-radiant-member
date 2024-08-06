@@ -161,7 +161,7 @@ module Radiant
         rdnt_amount_from_locked_and_loose_arbitrum = get_rdnt_amount_from_locked_and_loose_balance(user, @radiant_uri_arbitrum, @radiant_uri_dlp_price_arbitrum, SiteSetting.radiant_quicknode_arb, @rdnt_token_address_arbitrum, @dlp_token_address_arbitrum, 0.8)
         rdnt_amount_from_locked_and_loose_bsc = get_rdnt_amount_from_locked_and_loose_balance(user, @radiant_uri_bsc, @radiant_uri_dlp_price_bsc, SiteSetting.radiant_quicknode_bsc, @rdnt_token_address_bsc, @dlp_token_address_bsc, 0.5)
         rdnt_amount_from_locked_and_loose_ethereum = get_rdnt_amount_from_locked_and_loose_balance(user, @radiant_uri_ethereum, @radiant_uri_dlp_price_ethereum, SiteSetting.radiant_quicknode_eth, @rdnt_token_address_ethereum, @dlp_token_address_ethereum, 0.8)
-        rdnt_amount_from_locked_and_loose_base = get_rdnt_amount_from_locked_and_loose_balance(user, @radiant_uri_base, @radiant_uri_dlp_price_base, SiteSetting.radiant_quicknode_base, @rdnt_token_address_base, @dlp_token_address_base, 0.8)
+        rdnt_amount_from_locked_and_loose_base = get_rdnt_amount_from_locked_and_loose_balance(user, @radiant_uri_base, @radiant_uri_dlp_price_base, SiteSetting.radiant_quicknode_base, @rdnt_token_address_base, @dlp_token_address_base, 0.5)
 
         loose_rdnt_in_wallet_arbitrum = get_loose_rdnt_in_wallet_amount(user.username, SiteSetting.radiant_quicknode_arb, @rdnt_token_address_arbitrum)
         loose_rdnt_in_wallet_bsc = get_loose_rdnt_in_wallet_amount(user.username, SiteSetting.radiant_quicknode_bsc, @rdnt_token_address_bsc)
